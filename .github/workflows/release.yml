@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+
+    # Trusted publishing: PyPI is told which workflow in which repository may publish this
+    # package, and gives it a short-lived token for that one upload. There is no API token in
+    # this repository's secrets, so there is none to leak.
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      # Tagging is not releasing. What is published is what passed, so it is checked here
+      # rather than trusted to have been checked before the tag was written.
+      - name: Tests
+        run: uv run --frozen pytest -q
+
+      - name: Lint and types
+        run: |
+          uv run --frozen ruff check --no-cache
+          uv run --frozen mypy
+
+      - name: The standard
+        run: uv run --frozen quillstack-standards .
+
+      - name: Build
+        run: uv build
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
